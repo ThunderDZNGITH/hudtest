@@ -9,7 +9,7 @@ int food = 20;
 int gold = 1500;
 
 bool inventoryVisible = false;
-float inventoryX = 1280; // position initiale hors écran à droite
+float inventoryX = 1280; // position initiale hors écran
 sf::Clock inventoryClock;
 
 /**
@@ -26,6 +26,61 @@ sf::Sprite hud_low_rarrow(hud_low_tex);
 sf::Sprite hud_inventory_bck(hud_low_tex);
 sf::Sprite hud_inventory_deco(hud_low_tex);
 sf::Sprite hud_inventory_txt(hud_low_tex);
+
+// Inventory Slots
+const int INVENTORY_COLS = 5;
+const int INVENTORY_ROWS = 5;
+
+struct Item {
+    int id;
+    sf::IntRect textureRect;
+};
+
+struct inventorySlot {
+    sf::Sprite backgroundSprite; // slot vide
+    sf::Sprite itemSprite;       // item par-dessus
+    int x, y;
+    int id;
+};
+
+inventorySlot inventorySlots[INVENTORY_ROWS][INVENTORY_COLS];
+
+void initInventorySlots() {
+    int slotSize = 36; // taille d’un slot
+    int padding = 4;   // espacement
+    int startX = 27;   // offset dans l'inventaire
+    int startY = 40;
+
+    for (int row = 0; row < INVENTORY_ROWS; ++row) {
+        for (int col = 0; col < INVENTORY_COLS; ++col) {
+            inventorySlot &slot = inventorySlots[row][col];
+            slot.x = startX + col * (slotSize + padding);
+            slot.y = startY + row * (slotSize + padding);
+            slot.id = -1; // slot vide
+
+            slot.backgroundSprite.setTexture(hud_low_tex);
+            slot.backgroundSprite.setTextureRect(sf::IntRect(103, 550, 34, 36)); // Texture d’un slot vide
+
+            slot.itemSprite.setTexture(hud_low_tex);
+            slot.itemSprite.setTextureRect(sf::IntRect(0, 0, 0, 0)); // Vide par défaut
+        }
+    }
+}
+
+bool addItemToInventory(const Item &item) {
+    for (int row = 0; row < INVENTORY_ROWS; ++row) {
+        for (int col = 0; col < INVENTORY_COLS; ++col) {
+            inventorySlot &slot = inventorySlots[row][col];
+            if (slot.id == -1) { // Slot vide
+                slot.id = item.id;
+                slot.itemSprite.setTextureRect(item.textureRect);
+                slot.itemSprite.setTexture(hud_low_tex);
+                return true;
+            }
+        }
+    }
+    return false; // Pas de place
+}
 
 void showHUD(sf::RenderWindow &window) {
     hud_low_bck.setTextureRect(sf::IntRect(32, 678, 410, 84));
@@ -56,16 +111,14 @@ void updateInventoryAnimation() {
         inventoryClock.restart();
     }
 
-    if(inventoryX == 1280 - 248) {
-
-    }  
-
     hud_inventory_bck.setTextureRect(sf::IntRect(38, 1666, 248, 280));
-    hud_inventory_bck.setPosition(inventoryX, 100); // Position Y fixée
+    hud_inventory_bck.setPosition(inventoryX, 100);
+
     hud_inventory_deco.setTextureRect(sf::IntRect(338, 1679, 224, 251));
-    hud_inventory_deco.setPosition(inventoryX+12, 113); // Position Y fixée
+    hud_inventory_deco.setPosition(inventoryX + 12, 113);
+
     hud_inventory_txt.setTextureRect(sf::IntRect(525, 2005, 120, 16));
-    hud_inventory_txt.setPosition(inventoryX+(248/2)-(120/2), 100+8); // Position Y fixée
+    hud_inventory_txt.setPosition(inventoryX + (248 / 2) - (120 / 2), 100 + 8);
 }
 
 int main() {
@@ -77,6 +130,8 @@ int main() {
         return -1;
     }
 
+    initInventorySlots();
+
     while (window.isOpen()) {
         sf::Event event{};
         while (window.pollEvent(event)) {
@@ -86,6 +141,19 @@ int main() {
             if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::E) {
                 inventoryVisible = !inventoryVisible;
                 std::cout << "Inventaire : " << (inventoryVisible ? "affiché" : "caché") << std::endl;
+            }
+
+            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::A) {
+                // Exemple d'ajout d'un item
+                Item potion;
+                potion.id = 1;
+                potion.textureRect = sf::IntRect(496, 177, 16, 16); // Exemple de sprite item
+
+                if (addItemToInventory(potion)) {
+                    std::cout << "Item ajouté à l'inventaire." << std::endl;
+                } else {
+                    std::cout << "Inventaire plein." << std::endl;
+                }
             }
         }
 
@@ -97,6 +165,25 @@ int main() {
         window.draw(hud_inventory_bck);
         window.draw(hud_inventory_deco);
         window.draw(hud_inventory_txt);
+
+        // Affichage des slots
+        for (int row = 0; row < INVENTORY_ROWS; ++row) {
+            for (int col = 0; col < INVENTORY_COLS; ++col) {
+                inventorySlot &slot = inventorySlots[row][col];
+                float slotX = inventoryX + slot.x;
+                float slotY = 100 + slot.y;
+
+                // Dessiner d’abord le fond
+                slot.backgroundSprite.setPosition(slotX, slotY);
+                window.draw(slot.backgroundSprite);
+
+                // Puis l’item s’il existe
+                if (slot.id != -1) {
+                    slot.itemSprite.setPosition(slotX+10, slotY+11);
+                    window.draw(slot.itemSprite);
+                }
+            }
+        }
 
         // Affichage HUD
         showHUD(window);
